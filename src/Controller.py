@@ -91,3 +91,7 @@ def get_move(player_hand, dealer_upcard):
 
         else:
             return 'hit'
+
+
+if __name__ == '__main__':
+    print('Testing')
