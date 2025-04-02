@@ -4,12 +4,11 @@ the game state from the screen and converting it into a format that the
 controller can understand.
 """
 
-import numpy as np
 import cv2
 
 # get file path of the image from user input
-file_path = input("Enter the path to the image: ")
-img = cv2.imread(file_path)
+file_path = input("Enter the name of the image (without extension): ")
+img = cv2.imread(f"images/{file_path}.jpg")
 
 # convert the image to grayscale
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
