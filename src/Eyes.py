@@ -3,24 +3,23 @@ Vision module for blackjack game. This module is responsible for extracting
 the game state from the screen and converting it into a format that the
 controller can understand.
 """
+
 import numpy as np
 import cv2
 import easyocr
 
 
 def play(image_name: str):
-    # get file path of the image from user input
+    # Read input image.
     img = cv2.imread(f"images/{image_name}.jpg")
 
-    # convert the image to grayscale
+    # Convert the image to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    img = gray
-
-    # apply Gaussian blur to the image
+    # Apply Gaussian blur to the image
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # apply canny edge detection
+    # Apply canny edge detection. Needed to detect contours
     edges = cv2.Canny(blurred, 100, 200)
 
     # Splitting image down the middle halfway
@@ -28,11 +27,11 @@ def play(image_name: str):
 
     # Dealer hand
     dealer_hand_edges = edges[0:h//2, :]
-    dealer_hand = img[0:h//2, :]
+    dealer_hand = gray[0:h//2, :]
 
     # Player hand
     player_hand_edges = edges[h//2:h, :]
-    player_hand = img[h//2:h, :]
+    player_hand = gray[h//2:h, :]
 
     dealer_cards = get_cards(dealer_hand_edges, dealer_hand)
     player_cards = get_cards(player_hand_edges, player_hand)
@@ -42,14 +41,16 @@ def play(image_name: str):
     player_sharpened = sharp(player_cards)
 
     # Crop and get card values
-    # dealer_values = get_card_value(dealer_cards)
-    # player_values = get_card_value(player_cards)
     dealer_values = get_card_value(dealer_sharpened)
     player_values = get_card_value(player_sharpened)
 
     # Run OCR on the cards
-    dealer_texts = ocr(dealer_values)
-    player_texts = ocr(player_values)
+    dealer_texts, d_adj = ocr(dealer_values)
+    player_texts, p_adj = ocr(player_values)
+
+    # Number of adjustments from OCR results made
+    print(f"Dealer adjustments: {d_adj}")
+    print(f"Player adjustments: {p_adj}")
 
     return [dealer_texts, player_texts]
 
@@ -66,13 +67,6 @@ def get_cards(edges, imgs) -> list:
 
     # Create a new image for each card
     card_images = []
-    # for i, contour in enumerate(card_contours):
-    #     # Get bounding box for each card
-    #     x, y, w, h = cv2.boundingRect(contour)
-        
-    #     # Extract the card from the original image
-    #     card_image = imgs[y:y+h, x:x+w]
-    #     card_images.append(card_image)
 
     for i, contour in enumerate(card_contours):
         rect = cv2.minAreaRect(contour)
@@ -104,8 +98,10 @@ def get_cards(edges, imgs) -> list:
 def sharp(card_list: list) -> list:
     sharpened_cards = []
     for card in card_list:
+        # First blur the image
         gaussian_blur = cv2.GaussianBlur(card, (7, 7), sigmaX=2)
 
+        # Sharpen the image by subtracting a blurred version of the image (weighted empirically)
         sharpened = cv2.addWeighted(card, 3.5, gaussian_blur, -2.5, 0)
 
         sharpened_cards.append(sharpened)
@@ -118,55 +114,47 @@ def get_card_value(card_list: list) -> list:
     for card in card_list:
         height, width = card.shape[:2]
 
-        # crop image to northwest corner
+        # Crop image to northwest corner
         x = int(width * 0.05)
         y = int(height * 0.05)
         crop_width = int(width * 0.165)
         crop_height = int(height * 0.19)
         card = card[y:y+crop_height, x:x+crop_width]
 
-        # resize card
+        # Resize card so value is larger in frame
         card = cv2.resize(card, (width, height))
         card_values.append(card)
     
     return card_values
 
 def ocr(card_images: list) -> list:
+    adjustments = 0
+
     # Run OCR on each card
     card_texts = []
     reader = easyocr.Reader(['en'])
     for card_image in card_images:
-        # Otsu's thresholding
+        
+        # Otsu's thresholding to convert image to binary
         card_image = cv2.GaussianBlur(card_image, (7, 7), 0)
         _,card_image = cv2.threshold(card_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+        # Morphological operations to "sharpen" the card values and remove noise
         card_image = cv2.morphologyEx(card_image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
         card_image = cv2.erode(card_image, np.ones((3, 3), np.uint8), iterations=1)
+
         cv2.imshow('Card', card_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         text = reader.readtext(card_image, detail=0)
         if text:
-            print(text)
+            if text == "0":
+                text = "Q"
+                adjustments += 1
+            if text == "1":
+                text = "7"
+                adjustments += 1
             card_texts.append(text[0])
 
-
-    return card_texts
-
-
-def main():
-    # Test
-
-    # Complete Image Set
-    #test_images = ["0_1", "1_1","1_2", "1_3", "2_1", "2_2", "3_1", "3_2", "3_3", "4_1", "4_2", "5_1", "5_2", "6_1", "6_2", "7_1", "7_2", "8_1", "8_2", "8_3", "8_4", "9_1", "9_2", "9_3", "9_4", "10_1", "10_2"]
-    
-    # Incorrect Answer Set
-    test_images = ["7_1", "7_2"]
-    for image in test_images:
-        print(f"Image: {image}")
-        [dealer, player] = play(image)
-        print("Dealer cards:", dealer)
-        print("Player cards:", player)
-        print("\n")
-
-if __name__ == "__main__":
-    main()
+        
+    return card_texts, adjustments
