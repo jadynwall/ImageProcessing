@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 
-def get_card_lists(image_name: str):
+def play(image_name: str):
     # get file path of the image from user input
     img = cv2.imread(f"images/{image_name}.jpg")
 
@@ -26,17 +26,29 @@ def get_card_lists(image_name: str):
     h, w = edges.shape[:2]
 
     # Dealer hand
-    dealer_hand = edges[0:h//2, :]
+    dealer_hand_edges = edges[0:h//2, :]
+    dealer_hand = img[0:h//2, :]
 
     # Player hand
-    player_hand = edges[h//2:h, :]
+    player_hand_edges = edges[h//2:h, :]
+    player_hand = img[h//2:h, :]
 
-    
+    dealer_cards = get_cards(dealer_hand_edges, dealer_hand)
+    player_cards = get_cards(player_hand_edges, player_hand)
+
+    # Crop and get card values
+    dealer_values = get_card_value(dealer_cards)
+    player_values = get_card_value(player_cards)
+
+    # Run OCR on the cards
+    dealer_texts = ocr(dealer_values)
+    player_texts = ocr(player_values)
+
+    return [dealer_texts, player_texts]
 
 
 
-
-def get_cards(img) -> list:
+def get_cards(edges, imgs) -> list:
     # Detect contours to find individual cards
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -52,42 +64,50 @@ def get_cards(img) -> list:
         x, y, w, h = cv2.boundingRect(contour)
         
         # Extract the card from the original image
-        card_image = img[y:y+h, x:x+w]
+        card_image = imgs[y:y+h, x:x+w]
         card_images.append(card_image)
     
     return card_images
         
 
-def isolate_card_value(original_images: list) -> list:
+def get_card_value(card_list: list) -> list:
+    card_values = []
+    for card in card_list:
+        height, width = card.shape[:2]
+
+        # crop image to northwest corner
+        crop_width = int(width * 0.23)
+        crop_height = int(height * 0.23)
+        card = card[:crop_height, :crop_width]
+
+        # resize card
+        card = cv2.resize(card, (width, height))
+        card_values.append(card)
     
+    return card_values
 
 def ocr(card_images: list) -> list:
     # Run OCR on each card
     card_texts = []
     for card_image in card_images:
-        card_text = pytesseract.image_to_string(card_image, config='--psm 10')
-        card_texts.append(card_text)
+        cv2.imshow('Card', card_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        text = pytesseract.image_to_string(card_image, config='--psm 10 -c tessedit_char_whitelist=123456789JQKA')
+        text = text.strip()
+        if text:
+            card_texts.append(text)
     
     return card_texts
 
 
+def main():
+    # Test
 
-# # run OCR on the dealer hand
-# dealer_text = pytesseract.image_to_boxes(dealer_hand, config='--psm 10')
-# print("Dealer Hand Text:", dealer_text)
+    [dealer, player] = play("6_1")
 
-# # Convert dealer_hand and player_hand to BGR format for colored bounding boxes
-# dealer_hand_bgr = cv2.cvtColor(dealer_hand, cv2.COLOR_GRAY2BGR)
-# player_hand_bgr = cv2.cvtColor(player_hand, cv2.COLOR_GRAY2BGR)
+    print("Dealer cards:", dealer)
+    print("Player cards:", player)
 
-
-# # run OCR on the player hand
-# player_text = pytesseract.image_to_boxes(player_hand, config='--psm 10')
-# print("Player Hand Text:", player_text)
-
-
-# Display the images with bounding boxes
-cv2.imshow("Player Hand", player_hand)
-cv2.imshow("Dealer Hand", dealer_hand)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
