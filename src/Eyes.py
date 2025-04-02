@@ -49,8 +49,8 @@ def play(image_name: str):
     player_texts, p_adj = ocr(player_values)
 
     # Number of adjustments from OCR results made
-    print(f"Dealer adjustments: {d_adj}")
-    print(f"Player adjustments: {p_adj}")
+    # print(f"Dealer adjustments: {d_adj}")
+    # print(f"Player adjustments: {p_adj}")
 
     return [dealer_texts, player_texts]
 
