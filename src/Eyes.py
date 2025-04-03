@@ -16,11 +16,23 @@ def play(image_name: str):
     # Convert the image to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
+    cv2.imshow('Gray Scale', gray)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     # Apply Gaussian blur to the image
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
+    cv2.imshow('Gaussian Blurred', blurred)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     # Apply canny edge detection. Needed to detect contours
     edges = cv2.Canny(blurred, 100, 200)
+
+    cv2.imshow('Canny Edge Detector', gray)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     # Splitting image down the middle halfway
     h, w = edges.shape[:2]
@@ -91,6 +103,11 @@ def get_cards(edges, imgs) -> list:
 
         # Apply the perspective transformation to get an upright card image
         card_image = cv2.warpPerspective(imgs, M, (width, height))
+
+        cv2.imshow('Isolate card via contours', card_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
         card_images.append(card_image)
     
     return card_images
@@ -103,6 +120,11 @@ def sharp(card_list: list) -> list:
 
         # Sharpen the image by subtracting a blurred version of the image (weighted empirically)
         sharpened = cv2.addWeighted(card, 3.5, gaussian_blur, -2.5, 0)
+
+        cv2.imshow('Sharpen', sharpened)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
 
         sharpened_cards.append(sharpened)
 
@@ -123,6 +145,11 @@ def get_card_value(card_list: list) -> list:
 
         # Resize card so value is larger in frame
         card = cv2.resize(card, (width, height))
+
+        cv2.imshow('Crop to Corner', card)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
         card_values.append(card)
     
     return card_values
@@ -143,7 +170,7 @@ def ocr(card_images: list) -> list:
         card_image = cv2.morphologyEx(card_image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
         card_image = cv2.erode(card_image, np.ones((3, 3), np.uint8), iterations=1)
 
-        cv2.imshow('Card', card_image)
+        cv2.imshow('OCR Input', card_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         text = reader.readtext(card_image, detail=0)
