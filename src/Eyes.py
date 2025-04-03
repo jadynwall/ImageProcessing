@@ -8,6 +8,8 @@ import numpy as np
 import cv2
 import easyocr
 
+log = False
+
 
 def play(image_name: str):
     # Read input image.
@@ -16,23 +18,23 @@ def play(image_name: str):
     # Convert the image to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    cv2.imshow('Gray Scale', gray)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if log:
+        cv2.imshow('Gray Scale', gray)
+        cv2.waitKey(0)
 
     # Apply Gaussian blur to the image
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    cv2.imshow('Gaussian Blurred', blurred)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if log:
+        cv2.imshow('Gaussian Blurred', blurred)
+        cv2.waitKey(0)
 
     # Apply canny edge detection. Needed to detect contours
     edges = cv2.Canny(blurred, 100, 200)
 
-    cv2.imshow('Canny Edge Detector', gray)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if log:
+        cv2.imshow('Canny Edge Detector', edges)
+        cv2.waitKey(0)
 
     # Splitting image down the middle halfway
     h, w = edges.shape[:2]
@@ -103,10 +105,12 @@ def get_cards(edges, imgs) -> list:
 
         # Apply the perspective transformation to get an upright card image
         card_image = cv2.warpPerspective(imgs, M, (width, height))
-
-        cv2.imshow('Isolate card via contours', card_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        
+        if log:
+            cv2.imshow('Isolate card via contours', card_image)
+            cv2.namedWindow('Isolate card via contours', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('Isolate card via contours', 700, 700)
+            cv2.waitKey(0)
 
         card_images.append(card_image)
     
@@ -121,9 +125,11 @@ def sharp(card_list: list) -> list:
         # Sharpen the image by subtracting a blurred version of the image (weighted empirically)
         sharpened = cv2.addWeighted(card, 3.5, gaussian_blur, -2.5, 0)
 
-        cv2.imshow('Sharpen', sharpened)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if log:
+            cv2.imshow('Sharpen', sharpened)
+            cv2.namedWindow('Sharpen', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('Sharpen', 700, 700)
+            cv2.waitKey(0)
 
 
         sharpened_cards.append(sharpened)
@@ -146,9 +152,11 @@ def get_card_value(card_list: list) -> list:
         # Resize card so value is larger in frame
         card = cv2.resize(card, (width, height))
 
-        cv2.imshow('Crop to Corner', card)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if log:
+            cv2.imshow('Crop to Corner', card)
+            cv2.namedWindow('Crop to Corner', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('Crop to Corner', 700, 700)
+            cv2.waitKey(0)
 
         card_values.append(card)
     
@@ -170,9 +178,12 @@ def ocr(card_images: list) -> list:
         card_image = cv2.morphologyEx(card_image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
         card_image = cv2.erode(card_image, np.ones((3, 3), np.uint8), iterations=1)
 
-        cv2.imshow('OCR Input', card_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if log:
+            cv2.imshow('OCR Input', card_image)
+            cv2.namedWindow('OCR Input', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('OCR Input', 700, 700)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
         text = reader.readtext(card_image, detail=0)
         if text:
             if text == "0":
@@ -185,3 +196,9 @@ def ocr(card_images: list) -> list:
 
         
     return card_texts, adjustments
+
+
+if __name__ == "__main__":
+    [dealer, player] = play("1_1")
+    print(f"Dealer: {dealer}")
+    print(f"Player: {player}")
